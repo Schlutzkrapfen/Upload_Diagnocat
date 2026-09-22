@@ -162,7 +162,11 @@ async def check_preview_image(page, expected_alt: str = "Pano AI")-> bool:
         Returns:
             True if at least one matching image, loading or preview is found, False otherwise.
         """
-    await page.wait_for_timeout(500)
+    loading = page.locator('.ReportGenerationStatus-module_container_6AYLt')
+    try:
+        await loading.wait_for(state="detached", timeout=20000)
+    except TimeoutError:
+        print("Loading indicator not detached within 20 seconds")
     loading = page.locator('.ReportGenerationStatus-module_container_6AYLt')
     preview = page.locator('[data-testid^="preview-report-Pano-"]')
     locator = page.locator(f'img[alt="{expected_alt}"]')
