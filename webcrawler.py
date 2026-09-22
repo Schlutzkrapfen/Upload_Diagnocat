@@ -105,6 +105,10 @@ async def upload_patient_picture(picutre_dir:Path):
     await button.click()
     file_input = page.locator('#upload-study-form input[type="file"]')
     await file_input.set_input_files(picutre_dir)
+    submit_btn = page.locator('button[type="submit"]')
+    print(submit_btn)
+    #await submit_btn.click()
+
     await page.wait_for_timeout(5000)
 
 

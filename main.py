@@ -21,7 +21,7 @@ async def main():
             await click_new_patient_button()
             #await add_patient(str(patient_amount), str(patient_amount), "01-01-2000",external_id=str(patient_amount))
             await go_to_patient_report(0)
-            await upload_patient_picture(Path("."))
+            await upload_patient_picture(Path("./input_pictures/138.jpg"))
         except TimeoutError as e:
             print(f"Login timed out: {e}")
 
