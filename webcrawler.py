@@ -37,6 +37,14 @@ async def login(page1: Page):
 
 
 async def click_new_patient_button():
+    """Navigates to the patients page and clicks the 'New Patient' button.
+
+        If the current page is not already the patients page, navigates to it
+        first. Then waits for the 'New Patient' button to appear and clicks it.
+
+        Raises:
+            LookupError: If the 'New Patient' button is not found on the page.
+        """
     if page.url.rstrip("/") != "https://app.diagnocat.eu/patients".rstrip("/"):
         print("Opening data page...")
         _website = await page.goto(
@@ -60,6 +68,26 @@ async def add_patient(
     external_id: str = "",
     doctor_name: str | None = None # None = keep the pre-filled default
 ):
+    """Fills out and submits the patient creation form.
+
+        Waits for the patient form to become visible, then fills in the
+        required fields (first name, last name, date of birth, gender) and
+        any optional fields that are provided (email, external ID, doctor).
+        Finally submits the form.
+
+        Args:
+            first_name: Patient's first name.
+            last_name: Patient's last name.
+            dob: Date of birth, in the format expected by the datepicker
+                (e.g. "DD.MM.YYYY").
+            gender: Patient's gender. One of "Männlich", "Weiblich", or
+                "Andere". Defaults to "Männlich".
+            email: Patient's email address. Skipped if empty.
+            external_id: External patient ID. Skipped if empty.
+            doctor_name: Name of the doctor to assign via the doctor
+                react-select field. If None, the pre-filled default doctor
+                is kept and the field is not touched.
+    """
 
     form = page.locator("#patient-form")
     await form.wait_for(state="visible")
@@ -104,54 +132,62 @@ async def add_patient(
 
     print(f"Patient '{first_name} {last_name}' submitted")
 
-    await page.wait_for_timeout(500)
-    await page.reload()
 
-async def upload_patient_picture(picutre_dir:Path):
+async def upload_patient_picture(picture_dir:Path):
+    """Uploads a Pano study image for the current patient.
+
+       Clicks the "Pano" button, sets the given file on the upload input,
+       and submits the form.
+
+       Args:
+           picture_dir: Path to the image file to upload.
+       """
+
     button = page.locator('button[type="button"]').filter(has_text="Pano")
     await button.click()
     file_input = page.locator('#upload-study-form input[type="file"]')
-    await file_input.set_input_files(picutre_dir)
+    await file_input.set_input_files(picture_dir)
     submit_btn = page.locator('button[type="submit"]')
     await submit_btn.click()
     await page.wait_for_timeout(5000)
 
 
 async def check_preview_image(page, expected_alt: str = "Pano AI")-> bool:
+    """Checks whether a preview image with the given alt text is present.
+
+        Args:
+            page: Playwright page to search in.
+            expected_alt: Alt text of the image to look for. Defaults to "Pano AI".
+
+        Returns:
+            True if at least one matching image is found, False otherwise.
+        """
     locator = page.locator(f'img[alt="{expected_alt}"]')
 
     return  await locator.count() != 0
 
 
 async def go_to_patient_report( user_id: int,max_retries:int=20):
-    """Navigates to a specific patient's report page.
+    """Opens a patient's page by row index in the patients table.
 
-     Opens the patients list page (or reloads if `locked`), scrolls the
-     infinite-scroll table until `user_id`'s row loads, opens that patient
-     in a new page, and opens their report card. Retries recursively on
-     failure: page/row timeouts reload and retry (decrementing
-     `max_retries`); an out-of-range `user_id` restarts from 0; unresolved
-     row data restarts from 0; a missing report card retries with
-     `user_id + 1`; a report-card timeout reloads and retries from 0.
+        Reloads the patients list, scrolls the infinite-scroll table until
+        the row at `user_id` is loaded, extracts that patient's ID from the
+        row's React props, and navigates to their patient page.
 
-     Args:
-         context: Browser context used to open the new patient page.
-         user_id: Index of the patient row to open in the table.
-         max_retries: Max retry attempts on page load/timeout errors.
-             Defaults to 20.
-         locked: If True, forces a reload of the patients page. Defaults
-             to False.
+        Retries recursively on failure: a timeout waiting for the page/table
+        reloads and retries with `max_retries` decremented; a preview image
+        already present, or a missing row (`IndexError`), restarts from
+        `user_id + 1` or `0` respectively.
 
-     Returns:
-         Page: The new page, navigated to the patient's report.
+        Args:
+            user_id: Index of the patient row to open in the table.
+            max_retries: Max retry attempts on page load/timeout errors.
+                Defaults to 20.
 
-     Raises:
-         OSError: If the patients page/row can't be found after exhausting
-             `max_retries`.
-         ValueError: If the report card can't be loaded after exhausting
-             `max_retries`.
-
-     """
+        Raises:
+            OSError: If the patients page/row can't be loaded after
+                exhausting `max_retries`.
+        """
     try:
         if page.url.rstrip("/") != "https://app.diagnocat.eu/patients".rstrip("/"):
             print("Opening data page...")
@@ -169,7 +205,11 @@ async def go_to_patient_report( user_id: int,max_retries:int=20):
         print(f"couldn't find body/row,skipping page: {e}")
         if max_retries <= 0:
             raise OSError("Window is closed or can't be seen")
-        return await go_to_patient_report(user_id ,max_retries -1)
+        await go_to_patient_report(user_id ,max_retries -1)
+        return
+
+    await page.wait_for_timeout(500)
+    await page.reload()
 
     # Scroll until we have enough rows loaded to reach user_id
     # Wait for the next page
@@ -202,13 +242,15 @@ async def go_to_patient_report( user_id: int,max_retries:int=20):
         if  await check_preview_image(page):
             print("Something is wrong: the picute is already there")
             await page.close()
-            return await go_to_patient_report(user_id+1,max_retries)
+            await go_to_patient_report(user_id+1,max_retries)
+            return
 
 
     except IndexError as e:
         print(f"User_id: {user_id} the picture wasn't there: {e} ")
         await page.close()
-        return await go_to_patient_report(0,max_retries)
+        await go_to_patient_report(0,max_retries)
+        return
 
 
 

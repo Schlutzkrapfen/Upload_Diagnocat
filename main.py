@@ -9,6 +9,13 @@ USER_DATA_DIR = "user_data"
 PICTURE_DIR = Path("./input_pictures")
 OUTPUT_DIR = Path("./used_pictures")
 async def main():
+    """Runs the patient-creation and picture-upload workflow.
+
+        Launches a persistent Chromium browser context, logs in, then for
+        each picture in `PICTURE_DIR`: creates a new patient, opens their
+        report page, uploads the picture, and moves the picture to
+        `OUTPUT_DIR` once done.
+        """
     async with async_playwright() as p:
         context: BrowserContext = await p.chromium.launch_persistent_context(
             USER_DATA_DIR,
@@ -36,6 +43,14 @@ async def main():
 
 
 def move_picture(picture_path: Path, destination_path: Path):
+    """Moves a picture file into the destination directory.
+
+        Creates `destination_path` if it doesn't exist yet.
+
+        Args:
+            picture_path: Path to the picture file to move.
+            destination_path: Directory to move the picture into.
+        """
     if not destination_path.exists():
         destination_path.mkdir(parents=True, exist_ok=True)
 
