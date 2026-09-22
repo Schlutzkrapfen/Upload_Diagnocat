@@ -188,6 +188,9 @@ async def go_to_patient_report( user_id: int,max_retries:int=20):
             OSError: If the patients page/row can't be loaded after
                 exhausting `max_retries`.
         """
+    await page.reload()
+    await page.wait_for_timeout(500)
+
     try:
         if page.url.rstrip("/") != "https://app.diagnocat.eu/patients".rstrip("/"):
             print("Opening data page...")
@@ -208,8 +211,6 @@ async def go_to_patient_report( user_id: int,max_retries:int=20):
         await go_to_patient_report(user_id ,max_retries -1)
         return
 
-    await page.wait_for_timeout(500)
-    await page.reload()
 
     # Scroll until we have enough rows loaded to reach user_id
     # Wait for the next page
