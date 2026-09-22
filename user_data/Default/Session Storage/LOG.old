@@ -1,3 +1,9 @@
-2026/09/22-12:48:28.219 139cb Reusing MANIFEST /home/david/Documents/Upload_Diagnocat/user_data/Default/Session Storage/MANIFEST-000001
-2026/09/22-12:48:28.219 139cb Recovering log #12
-2026/09/22-12:48:28.220 139cb Reusing old log /home/david/Documents/Upload_Diagnocat/user_data/Default/Session Storage/000012.log 
+2026/09/22-13:27:20.433 16c29 Reusing MANIFEST /home/david/Documents/Upload_Diagnocat/user_data/Default/Session Storage/MANIFEST-000001
+2026/09/22-13:27:20.433 16c29 Recovering log #18
+2026/09/22-13:27:20.433 16c29 Reusing old log /home/david/Documents/Upload_Diagnocat/user_data/Default/Session Storage/000018.log 
+2026/09/22-13:27:43.027 16c2b Level-0 table #22: started
+2026/09/22-13:27:43.028 16c2b Level-0 table #22: 15728 bytes OK
+2026/09/22-13:27:43.030 16c2b Delete type=0 #18
+2026/09/22-13:28:17.469 16c2b Level-0 table #24: started
+2026/09/22-13:28:17.471 16c2b Level-0 table #24: 15160 bytes OK
+2026/09/22-13:28:17.472 16c2b Delete type=0 #21

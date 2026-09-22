@@ -1,9 +1,6 @@
-import asyncio
-from asyncio.timeouts import timeout
 from pathlib import Path
-from types import BuiltinMethodType
 
-from playwright.async_api import  Page, Playwright
+from playwright.async_api import  Page
 
 page:Page
 user_page:Page | None = None
@@ -120,6 +117,10 @@ async def upload_patient_picture(picutre_dir:Path):
     await page.wait_for_timeout(5000)
 
 
+async def check_preview_image(page, expected_alt: str = "Pano AI")-> bool:
+    locator = page.locator(f'img[alt="{expected_alt}"]')
+
+    return  await locator.count() != 0
 
 
 async def go_to_patient_report( user_id: int,max_retries:int=20):
@@ -192,17 +193,17 @@ async def go_to_patient_report( user_id: int,max_retries:int=20):
             return JSON.stringify(props, (k, v) => typeof v === 'function' ? undefined : v);
         }
         """)
-
         import json
         row_data = json.loads(row_data_json)
         patient_id = row_data["children"][0]["props"]["children"]["props"]["row"]["original"]["ID"]
         patient_url = f"https://app.diagnocat.eu/patients/{patient_id}"
 
         await page.goto(patient_url, wait_until="domcontentloaded", timeout=10000)
+        if  await check_preview_image(page):
+            print("Something is wrong: the picute is already there")
+            await page.close()
+            return await go_to_patient_report(user_id+1,max_retries)
 
-        # ... do your work on new_page ...
-
-        # #await new_page.close()
 
     except IndexError as e:
         print(f"User_id: {user_id} the picture wasn't there: {e} ")
