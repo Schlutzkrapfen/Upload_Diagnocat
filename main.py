@@ -23,6 +23,7 @@ async def main():
         )
 
         page: Page = await context.new_page()
+        failed_pictures = []
 
 
         try:
@@ -33,13 +34,13 @@ async def main():
             for i, picture in enumerate(pictures):
                 await click_new_patient_button()
                 await add_patient(str(patient_amount+i), str(patient_amount+i), "01-01-2000",external_id=str(patient_amount+i))
-                await go_to_patient_report(0)
-                await upload_patient_picture(picture)
+                current_user = await go_to_patient_report(0)
+                await upload_patient_picture(picture,current_user)
                 move_picture(picture, OUTPUT_DIR)
         except TimeoutError as e:
             print(f"Login timed out: {e}")
         finally:
-            print("Finished uploading pictures")
+            print(f"Finished uploading pictures. Failed: {len(failed_pictures)}")
 
 
 

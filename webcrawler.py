@@ -1,6 +1,8 @@
+from asyncio.timeouts import timeout
 from pathlib import Path
 
 from playwright.async_api import  Page
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
 page:Page
 user_page:Page | None = None
@@ -35,6 +37,14 @@ async def login(page1: Page):
         print("Login successful!")
 
 
+async def go_to_patients_page():
+    if page.url.rstrip("/") != "https://app.diagnocat.eu/patients".rstrip("/"):
+            print("Opening data page...")
+            _website = await page.goto(
+            "https://app.diagnocat.eu/patients",
+            wait_until="domcontentloaded",
+            timeout=10000,
+            )
 
 async def click_new_patient_button():
     """Navigates to the patients page and clicks the 'New Patient' button.
@@ -45,13 +55,7 @@ async def click_new_patient_button():
         Raises:
             LookupError: If the 'New Patient' button is not found on the page.
         """
-    if page.url.rstrip("/") != "https://app.diagnocat.eu/patients".rstrip("/"):
-        print("Opening data page...")
-        _website = await page.goto(
-        "https://app.diagnocat.eu/patients",
-        wait_until="domcontentloaded",
-        timeout=10000,
-        )
+    await go_to_patients_page()
     button = await page.wait_for_selector("button.Patients-module_newPatientButton_ACBBZ")
     if button is None:
         raise LookupError("New patient button not found")
@@ -99,8 +103,6 @@ async def add_patient(
     if email:
         await form.locator('input[name="email"]').fill(email)
 
-
-
     # 5. External patient ID (optional)
     if external_id:
         await form.locator('input[name="patientExternalID"]').fill(external_id)
@@ -128,12 +130,13 @@ async def add_patient(
     # 8. Submit
     submit_btn = page.locator('button[form="patient-form"][type="submit"]')
 
+
     await submit_btn.click()
 
     print(f"Patient '{first_name} {last_name}' submitted")
 
 
-async def upload_patient_picture(picture_dir:Path):
+async def upload_patient_picture(picture_dir:Path,curren_user:int):
     """Uploads a Pano study image for the current patient.
 
        Clicks the "Pano" button, sets the given file on the upload input,
@@ -143,11 +146,18 @@ async def upload_patient_picture(picture_dir:Path):
            picture_dir: Path to the image file to upload.
        """
 
-    button = page.locator('button[type="button"]').filter(has_text="Pano")
-    await button.click()
-    file_input = page.locator('#upload-study-form input[type="file"]')
-    await file_input.set_input_files(picture_dir)
-    submit_btn = page.locator('button[type="submit"]')
+    try:
+        button = page.locator('button[type="button"]').filter(has_text="Pano")
+        await button.click()
+        file_input = page.locator('#upload-study-form input[type="file"]')
+        await file_input.set_input_files(picture_dir,timeout= 5000)
+        submit_btn = page.locator('button[type="submit"]')
+    except Exception as e:
+        print(f"Failed to set input files: {e}now opening patient with index {curren_user+1}")
+
+        curren_user =await go_to_patient_report(curren_user+1)
+        await upload_patient_picture(picture_dir, curren_user)
+        return
     await submit_btn.click()
     await page.wait_for_timeout(5000)
 
@@ -165,7 +175,7 @@ async def check_preview_image(page, expected_alt: str = "Pano AI")-> bool:
     loading = page.locator('.ReportGenerationStatus-module_container_6AYLt')
     try:
         await loading.wait_for(state="detached", timeout=20000)
-    except TimeoutError:
+    except PlaywrightTimeoutError:
         print("Loading indicator not detached within 20 seconds")
     loading = page.locator('.ReportGenerationStatus-module_container_6AYLt')
     preview = page.locator('[data-testid^="preview-report-Pano-"]')
@@ -174,7 +184,7 @@ async def check_preview_image(page, expected_alt: str = "Pano AI")-> bool:
     return  await locator.count() != 0 or await preview.count() != 0 or await loading.count() != 0
 
 
-async def go_to_patient_report( user_id: int,max_retries:int=20):
+async def go_to_patient_report(user_id: int,max_retries:int=20)-> int:
     """Opens a patient's page by row index in the patients table.
 
         Reloads the patients list, scrolls the infinite-scroll table until
@@ -215,8 +225,7 @@ async def go_to_patient_report( user_id: int,max_retries:int=20):
         print(f"couldn't find body/row,skipping page: {e}")
         if max_retries <= 0:
             raise OSError("Window is closed or can't be seen")
-        await go_to_patient_report(user_id ,max_retries -1)
-        return
+        return await go_to_patient_report(user_id ,max_retries -1)
 
 
     # Scroll until we have enough rows loaded to reach user_id
@@ -250,20 +259,15 @@ async def go_to_patient_report( user_id: int,max_retries:int=20):
         await page.wait_for_timeout(500)
         if await check_preview_image(page):
             print("Something is wrong: the picute is already there")
-            await go_to_patient_report(user_id+1,max_retries)
-            return
+            return await go_to_patient_report(user_id+1,max_retries)
+
 
 
     except IndexError as e:
         print(f"User_id: {user_id} the picture wasn't there: {e} ")
         await page.close()
-        await go_to_patient_report(0,max_retries)
-        return
-
-
-
-
-
+        return await go_to_patient_report(0,max_retries)
+    return user_id
 
 async def get_patient_amount()->int:
     """Gets the total patient count from Diagnocat.
@@ -321,7 +325,6 @@ async def get_patient_amount()->int:
             else:
                 # no growth this check — don't give up immediately,
                 # could just be a slow network round-trip
-
                 stable_checks += 1
                 if stable_checks >= max_stable_checks:
                     break
