@@ -1,3 +1,7 @@
+import asyncio
+from asyncio.timeouts import timeout
+from types import BuiltinMethodType
+
 from playwright.async_api import  Page
 
 page:Page
@@ -33,6 +37,67 @@ async def login(page1: Page):
         print("Login successful!")
 
 
+
+async def click_new_patient_button():
+    button = await page.wait_for_selector("button.Patients-module_newPatientButton_ACBBZ")
+    if button is None:
+        raise LookupError("New patient button not found")
+    await button.click()
+    print("button clicked")
+
+
+async def add_patient(
+    first_name: str,
+    last_name: str,
+    dob: str,                      # format: "DD.MM.YYYY" or whatever the datepicker expects
+    gender: str = "Männlich",      # "Männlich" | "Weiblich" | "Andere"
+    email: str = "",
+    external_id: str = "",
+    doctor_name: str | None = None # None = keep the pre-filled default
+):
+
+    form = page.locator("#patient-form")
+    await form.wait_for(state="visible")
+
+    await form.locator('input[name="firstName"]').fill(first_name)
+    await form.locator('input[name="lastName"]').fill(last_name)
+
+    # 3. Email (optional)
+    if email:
+        await form.locator('input[name="email"]').fill(email)
+
+
+
+    # 5. External patient ID (optional)
+    if external_id:
+        await form.locator('input[name="patientExternalID"]').fill(external_id)
+
+    # 6. Gender radio
+    await form.locator(f'label:has(input[name="gender"][label="{gender}"])').click()
+    # force=True because the actual <input> is visually hidden behind the styled <span>
+
+    # 7. Doctor (react-select) — only touch it if a specific doctor is requested
+    if doctor_name:
+        doctor_select = form.locator(".DoctorsSelect-module_container_SXraQ")
+        # remove the currently selected doctor chip, if any
+        remove_btn = doctor_select.locator('[aria-label^="Remove"]')
+        if await remove_btn.count() > 0:
+            await remove_btn.click()
+        select_input = doctor_select.locator("input#react-select-5-input")
+        await select_input.click()
+        await select_input.fill(doctor_name)
+        await page.get_by_text(doctor_name, exact=False).click()
+    # 4. Date of birth (react-datepicker)
+    dob_input = form.locator(".DatePicker-module_input_nXZlF")
+    await dob_input.click()
+    await dob_input.fill(dob)
+        #await dob_input.press("Escape")  # closes the calendar popup without changing focus issues
+    # 8. Submit
+    submit_btn = page.locator('button[form="patient-form"][type="submit"]')
+
+    await submit_btn.click()
+    print(f"Patient '{first_name} {last_name}' submitted")
+    await page.wait_for_timeout(50000)
 
 
 async def get_patient_amount()->int:

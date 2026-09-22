@@ -1,6 +1,6 @@
 import asyncio
 from playwright.async_api import BrowserContext, Page, async_playwright
-from webcrawler import login
+from webcrawler import add_patient, click_new_patient_button, get_patient_amount, login
 
 
 USER_DATA_DIR = "user_data"
@@ -16,6 +16,9 @@ async def main():
 
         try:
             await login(page)
+            patient_amount = await get_patient_amount()
+            await click_new_patient_button()
+            await add_patient(str(patient_amount), str(patient_amount), "01-01-2000")
         except TimeoutError as e:
             print(f"Login timed out: {e}")
 
