@@ -40,6 +40,13 @@ async def login(page1: Page):
 
 
 async def click_new_patient_button():
+    if page.url.rstrip("/") != "https://app.diagnocat.eu/patients".rstrip("/"):
+        print("Opening data page...")
+        _website = await page.goto(
+        "https://app.diagnocat.eu/patients",
+        wait_until="domcontentloaded",
+        timeout=10000,
+        )
     button = await page.wait_for_selector("button.Patients-module_newPatientButton_ACBBZ")
     if button is None:
         raise LookupError("New patient button not found")
@@ -97,8 +104,11 @@ async def add_patient(
     submit_btn = page.locator('button[form="patient-form"][type="submit"]')
 
     await submit_btn.click()
+
     print(f"Patient '{first_name} {last_name}' submitted")
-    #await page.wait_for_timeout(5000)
+
+    await page.wait_for_timeout(500)
+    await page.reload()
 
 async def upload_patient_picture(picutre_dir:Path):
     button = page.locator('button[type="button"]').filter(has_text="Pano")
@@ -106,10 +116,9 @@ async def upload_patient_picture(picutre_dir:Path):
     file_input = page.locator('#upload-study-form input[type="file"]')
     await file_input.set_input_files(picutre_dir)
     submit_btn = page.locator('button[type="submit"]')
-    print(submit_btn)
-    #await submit_btn.click()
-
+    await submit_btn.click()
     await page.wait_for_timeout(5000)
+
 
 
 
