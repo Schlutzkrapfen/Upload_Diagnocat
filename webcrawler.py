@@ -153,19 +153,21 @@ async def upload_patient_picture(picture_dir:Path):
 
 
 async def check_preview_image(page, expected_alt: str = "Pano AI")-> bool:
-    """Checks whether a preview image with the given alt text is present.
+    """Checks whether a preview image or loading indicator with the given alt text is present.
 
         Args:
             page: Playwright page to search in.
             expected_alt: Alt text of the image to look for. Defaults to "Pano AI".
 
         Returns:
-            True if at least one matching image is found, False otherwise.
+            True if at least one matching image, loading or preview is found, False otherwise.
         """
+    await page.wait_for_timeout(500)
+    loading = page.locator('.ReportGenerationStatus-module_container_6AYLt')
     preview = page.locator('[data-testid^="preview-report-Pano-"]')
     locator = page.locator(f'img[alt="{expected_alt}"]')
 
-    return  await locator.count() != 0 or await preview.count() != 0
+    return  await locator.count() != 0 or await preview.count() != 0 or await loading.count() != 0
 
 
 async def go_to_patient_report( user_id: int,max_retries:int=20):
@@ -244,7 +246,6 @@ async def go_to_patient_report( user_id: int,max_retries:int=20):
         await page.wait_for_timeout(500)
         if await check_preview_image(page):
             print("Something is wrong: the picute is already there")
-            await page.close()
             await go_to_patient_report(user_id+1,max_retries)
             return
 

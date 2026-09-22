@@ -38,6 +38,8 @@ async def main():
                 move_picture(picture, OUTPUT_DIR)
         except TimeoutError as e:
             print(f"Login timed out: {e}")
+        finally:
+            print("Finished uploading pictures")
 
 
 
