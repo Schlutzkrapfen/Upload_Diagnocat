@@ -1,8 +1,9 @@
 import asyncio
 from asyncio.timeouts import timeout
+from pathlib import Path
 from types import BuiltinMethodType
 
-from playwright.async_api import  Page
+from playwright.async_api import  Page, Playwright
 
 page:Page
 user_page:Page | None = None
@@ -97,7 +98,107 @@ async def add_patient(
 
     await submit_btn.click()
     print(f"Patient '{first_name} {last_name}' submitted")
-    await page.wait_for_timeout(50000)
+    #await page.wait_for_timeout(5000)
+
+async def upload_patient_picture(picutre_dir:Path):
+    button = page.locator('button[type="button"]').filter(has_text="Pano")
+    await button.click()
+    file_input = page.locator('#upload-study-form input[type="file"]')
+    await file_input.set_input_files(picutre_dir)
+    await page.wait_for_timeout(5000)
+
+
+
+async def go_to_patient_report( user_id: int,max_retries:int=20):
+    """Navigates to a specific patient's report page.
+
+     Opens the patients list page (or reloads if `locked`), scrolls the
+     infinite-scroll table until `user_id`'s row loads, opens that patient
+     in a new page, and opens their report card. Retries recursively on
+     failure: page/row timeouts reload and retry (decrementing
+     `max_retries`); an out-of-range `user_id` restarts from 0; unresolved
+     row data restarts from 0; a missing report card retries with
+     `user_id + 1`; a report-card timeout reloads and retries from 0.
+
+     Args:
+         context: Browser context used to open the new patient page.
+         user_id: Index of the patient row to open in the table.
+         max_retries: Max retry attempts on page load/timeout errors.
+             Defaults to 20.
+         locked: If True, forces a reload of the patients page. Defaults
+             to False.
+
+     Returns:
+         Page: The new page, navigated to the patient's report.
+
+     Raises:
+         OSError: If the patients page/row can't be found after exhausting
+             `max_retries`.
+         ValueError: If the report card can't be loaded after exhausting
+             `max_retries`.
+
+     """
+    try:
+        if page.url.rstrip("/") != "https://app.diagnocat.eu/patients".rstrip("/"):
+            print("Opening data page...")
+            _website = await page.goto(
+            "https://app.diagnocat.eu/patients",
+            wait_until="domcontentloaded",
+            timeout=10000,
+            )
+
+        row_selector = "tr.TableWithInfiniteScroll-module_tableRow_7Ru4e"
+
+        _body = await page.wait_for_selector("body", timeout=15000)
+        _row = await page.wait_for_selector(row_selector, timeout=15000)
+    except TimeoutError as e:
+        print(f"couldn't find body/row,skipping page: {e}")
+        if max_retries <= 0:
+            raise OSError("Window is closed or can't be seen")
+        return await go_to_patient_report(user_id ,max_retries -1)
+
+    # Scroll until we have enough rows loaded to reach user_id
+    # Wait for the next page
+    while True:
+            rows = await page.query_selector_all(row_selector)
+
+            if len(rows) > user_id:
+                break  # We have enough rows, stop scrolling
+
+            # Not enough rows yet — scroll down to load more
+            await rows[-1].scroll_into_view_if_needed()
+
+
+    try:
+        # await rows[user_id].click()
+        row_data_json = await rows[user_id].evaluate("""
+        el => {
+            const key = Object.keys(el).find(k => k.startsWith('__reactProps$'));
+            if (!key) return null;
+            const props = el[key];
+            return JSON.stringify(props, (k, v) => typeof v === 'function' ? undefined : v);
+        }
+        """)
+
+        import json
+        row_data = json.loads(row_data_json)
+        patient_id = row_data["children"][0]["props"]["children"]["props"]["row"]["original"]["ID"]
+        patient_url = f"https://app.diagnocat.eu/patients/{patient_id}"
+
+        await page.goto(patient_url, wait_until="domcontentloaded", timeout=10000)
+
+        # ... do your work on new_page ...
+
+        # #await new_page.close()
+
+    except IndexError as e:
+        print(f"User_id: {user_id} the picture wasn't there: {e} ")
+        await page.close()
+        return await go_to_patient_report(0,max_retries)
+
+
+
+
 
 
 async def get_patient_amount()->int:
