@@ -28,7 +28,7 @@ async def main():
 
         try:
             await login(page)
-            patient_amount = await get_patient_amount()
+            patient_amount = await get_patient_amount()+1
             pictures = await asyncio.to_thread(lambda: list(PICTURE_DIR.iterdir()))
 
             for i, picture in enumerate(pictures):

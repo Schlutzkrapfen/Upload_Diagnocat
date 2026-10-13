@@ -112,7 +112,7 @@ async def add_patient(
     # force=True because the actual <input> is visually hidden behind the styled <span>
 
     # 7. Doctor (react-select) — only touch it if a specific doctor is requested
-    if doctor_name:
+    if doctor_name is not None:
         doctor_select = form.locator(".DoctorsSelect-module_container_SXraQ")
         # remove the currently selected doctor chip, if any
         remove_btn = doctor_select.locator('[aria-label^="Remove"]')
@@ -160,7 +160,6 @@ async def upload_patient_picture(picture_dir:Path,curren_user:int):
         return
     await submit_btn.click()
     await page.wait_for_timeout(5000)
-
 
 async def check_preview_image(page, expected_alt: str = "Pano AI")-> bool:
     """Checks whether a preview image or loading indicator with the given alt text is present.
