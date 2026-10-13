@@ -1,6 +1,7 @@
 import asyncio
 import shutil
 from pathlib import Path
+from typing import Dict
 from playwright.async_api import BrowserContext, Page, async_playwright
 from webcrawler import add_patient, click_new_patient_button, get_patient_amount, go_to_patient_report, login, upload_patient_picture
 
@@ -33,7 +34,8 @@ async def main():
 
             for i, picture in enumerate(pictures):
                 await click_new_patient_button()
-                await add_patient(str(patient_amount+i), str(patient_amount+i), "01-01-2000",external_id=str(patient_amount+i))
+                info = get_info(picture)
+                await add_patient(info["first_name"], info["last_name"], info["birthday"], info["sex"], external_id=str(patient_amount+i))
                 current_user = await go_to_patient_report(0)
                 await upload_patient_picture(picture,current_user)
                 move_picture(picture, OUTPUT_DIR)
@@ -44,6 +46,19 @@ async def main():
 
 
 
+def get_info(picture_path: Path):
+    parts = picture_path.stem.split("-")
+    dictionary: dict[str, str] = {}
+    dictionary["first_name"] = parts[0]
+    dictionary["last_name"] = parts[1]
+    if parts[3] == "M":
+        dictionary["sex"] = "Männlich"
+    else:
+        dictionary["sex"] = "Weiblich"
+    dictionary["age"] = parts[4]
+    year =  2026 - int(dictionary["age"])
+    dictionary["birthday"] = f"01-01-{year}"
+    return dictionary
 
 def move_picture(picture_path: Path, destination_path: Path):
     """Moves a picture file into the destination directory.
