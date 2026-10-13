@@ -430,6 +430,6 @@ FodyWeavers.xsd
 
 *.jpg
 *.png
-.user_data/
+.user_data/**
 .__pycache__/
 
