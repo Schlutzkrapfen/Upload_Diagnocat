@@ -30,6 +30,7 @@ async def main():
             await login(page)
             patient_amount = await get_patient_amount()+1
             pictures = await asyncio.to_thread(lambda: list(PICTURE_DIR.iterdir()))
+            print(f"Found {len(pictures)} pictures to upload")
 
             for i, picture in enumerate(pictures):
                 await click_new_patient_button()
@@ -58,6 +59,11 @@ def refine_info(picture_path: Path)-> tuple[str,str|None,str,str]:
         last_name = None
         age = parts[2]
         sex = parts[1]
+    elif len(parts) == 4:
+        first_name = parts[0]
+        last_name = parts[1]
+        age = parts[3]
+        sex = parts[2]
     else:
         raise ValueError(f"Invalid picture name: {picture_path}")
     return first_name,last_name, age, sex
