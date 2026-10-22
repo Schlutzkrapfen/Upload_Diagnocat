@@ -47,7 +47,7 @@ async def main():
 
 def refine_info(picture_path: Path)-> tuple[str,str|None,str,str]:
     parts = picture_path.stem.split("-")
-    if len(parts) == 1:
+    if len(parts) == 1 or len(parts) == 2:
         parts = picture_path.stem.split("_")
     if len(parts) == 5:
         first_name = parts[0]

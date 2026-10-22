@@ -220,7 +220,7 @@ async def go_to_patient_report(user_id: int,max_retries:int=20)-> int:
 
         _body = await page.wait_for_selector("body", timeout=15000)
         _row = await page.wait_for_selector(row_selector, timeout=15000)
-    except TimeoutError as e:
+    except (TimeoutError, PlaywrightTimeoutError) as e:
         print(f"couldn't find body/row,skipping page: {e}")
         if max_retries <= 0:
             raise OSError("Window is closed or can't be seen")
