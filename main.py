@@ -1,7 +1,6 @@
 import asyncio
 import shutil
 from pathlib import Path
-from typing import Dict
 from playwright.async_api import BrowserContext, Page, async_playwright
 from webcrawler import add_patient, click_new_patient_button, get_patient_amount, go_to_patient_report, login, upload_patient_picture
 
@@ -45,17 +44,38 @@ async def main():
             print(f"Finished uploading pictures. Failed: {len(failed_pictures)}")
 
 
+def refine_info(picture_path: Path)-> tuple[str,str|None,str,str]:
+    parts = picture_path.stem.split("-")
+    if len(parts) == 1:
+        parts = picture_path.stem.split("_")
+    if len(parts) == 5:
+        first_name = parts[0]
+        last_name = parts[1]
+        age = parts[4]
+        sex = parts[3]
+    elif len(parts) == 3:
+        first_name = parts[0]
+        last_name = None
+        age = parts[2]
+        sex = parts[1]
+    else:
+        raise ValueError(f"Invalid picture name: {picture_path}")
+    return first_name,last_name, age, sex
 
 def get_info(picture_path: Path):
-    parts = picture_path.stem.split("-")
+    first_name, last_name, age, sex = refine_info(picture_path)
+
     dictionary: dict[str, str] = {}
-    dictionary["first_name"] = parts[0]
-    dictionary["last_name"] = parts[1]
-    if parts[3] == "M":
+    dictionary["first_name"] = first_name
+    if not last_name is None:
+        dictionary["last_name"] = last_name
+    else:
+        dictionary["last_name"] = first_name
+    if sex == "M":
         dictionary["sex"] = "Männlich"
     else:
         dictionary["sex"] = "Weiblich"
-    dictionary["age"] = parts[4]
+    dictionary["age"] = age
     year =  2026 - int(dictionary["age"])
     dictionary["birthday"] = f"01-01-{year}"
     return dictionary
